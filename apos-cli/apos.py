@@ -6,13 +6,13 @@ import yaml
 import getpass
 import os
 from tabulate import tabulate
-from misc import COLORS
+from misc import COLORS, pizza
 from api import APOS_API
 
 class APOS:
 
     def __init__(self):
-        print(f"Welcome to {COLORS.WARNING}APOS the Agile Pizza Ordering Service{COLORS.ENDC}\n")
+        print(f"Welcome to {COLORS.WARNING}APOS the Agile Pizza Ordering Service{COLORS.ENDC}\n{pizza}")
 
         parser = argparse.ArgumentParser(description=f"Command Line Interface for {COLORS.WARNING}'APOS - Agile Pizza Ordering Service'{COLORS.ENDC}")
 
