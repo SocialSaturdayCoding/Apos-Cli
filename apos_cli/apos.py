@@ -12,7 +12,7 @@ from .api import APOS_API
 class APOS:
 
     def __init__(self):
-        print(f"Welcome to {COLORS.WARNING}APOS the Agile Pizza Ordering Service{COLORS.ENDC}\n{pizza}")
+        print(f"\nWelcome to {COLORS.WARNING}APOS the Agile Pizza Ordering Service{COLORS.ENDC}\n{pizza}")
 
         parser = argparse.ArgumentParser(description=f"Command Line Interface for {COLORS.WARNING}'APOS - Agile Pizza Ordering Service'{COLORS.ENDC}")
 
