@@ -1,4 +1,5 @@
 import requests
+import datetime
 from misc import COLORS
 
 class APOS_API:
@@ -111,8 +112,22 @@ class APOS_API:
             self.user_items = resp.json()
             return True
         else:
-            print(resp)
             return False
 
     def get_user_groups(self):
         return self.user_items
+
+    def set_order_arrived(self, order_id, arrival_time=None):
+        if not arrival_time:
+            arrival_time = datetime.datetime.now()
+
+        arrival_time = arrival_time.timestamp()
+
+        resp = requests.patch(f"{self.base_url}orders/{order_id}",
+                            json={'arrival': arrival_time},
+                            headers=self._get_auth())
+
+        if resp.status_code == 200:
+            return True
+        else:
+            return False

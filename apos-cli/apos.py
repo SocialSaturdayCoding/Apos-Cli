@@ -18,12 +18,14 @@ class APOS:
 
         subparsers = parser.add_subparsers(title="command", description="command which shall be performed", dest="command")
 
-        parser_order = subparsers.add_parser("order", help="Add, view or modify group orders")
+        parser_order = subparsers.add_parser("order", help="Order a pizza")
 
-        parser_show = subparsers.add_parser("show", help="Add, view or modify group orders")
+        parser_show = subparsers.add_parser("show", help="Show the items you ordered or the groups you created")
+
+        parser_arrived = subparsers.add_parser("arrived", help="Flag a order as arrived")
 
         parser_login = subparsers.add_parser("login",
-                                            help="login to your account and create a token for authentication, do this first!")
+                                            help="Login to your account and create a token for authentication, do this first!")
 
         args = parser.parse_args()
 
@@ -47,8 +49,8 @@ class APOS:
         if args.command == "show":
             self.start_show()
 
-        if args.command == "edit":
-            self.start_show()
+        if args.command == "arrived":
+            self.start_arrived()
 
     def print_error(self, error):
         print(COLORS.FAIL + COLORS.BOLD + error + COLORS.ENDC)
@@ -99,7 +101,7 @@ class APOS:
             user_input = input(f"~ (0-{num_groups - 1} | c | q) : ")
 
             if user_input.isdigit():
-                if int(user_input) < num_groups:
+                if 0 <= int(user_input) < num_groups:
                     self.create_item(self.get_id_for_active_order(int(user_input)))
                     return
                 else:
@@ -240,28 +242,32 @@ class APOS:
         else:
             print("What are you doing? I asked for 1 or 2!")
 
-    def show_user_groups(self, past=2):
+    def show_user_groups(self, past=2, not_arrived=False, show_arrival=True):
         if self.api.pull_user_groups():
             orders = self.api.get_user_groups()
+
+            id_list = []
 
             #Format
             fromated_orders = []
             for order in orders:
                 if (datetime.now() - datetime.fromtimestamp(int(order['deadline']))).days < past:
-                    order_formated = {
-                        'title': order['title'],
-                        'description': order['description'],
-                        'location': order['location'],
-                        'deliverer': order['deliverer'],
-                        'deadline': datetime.fromtimestamp(int(order['deadline']))
-                        }
+                    if not 'arrival' in order.keys() or not not_arrived:
+                        order_formated = {
+                            'title': order['title'],
+                            'description': order['description'],
+                            'location': order['location'],
+                            'deliverer': order['deliverer'],
+                            'deadline': datetime.fromtimestamp(int(order['deadline']))
+                            }
+                        if show_arrival:
+                            if 'arrival' in order.keys():
+                                order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+                            else:
+                                order_formated['arrival'] = "Unknown"
 
-                    if 'arrival' in order.keys():
-                        order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
-                    else:
-                        order_formated['arrival'] = "Unknown"
-
-                    fromated_orders.append(order_formated)
+                        fromated_orders.append(order_formated)
+                        id_list.append(order['id'])
 
             header_bar = {
                 'title': "Title",
@@ -273,6 +279,8 @@ class APOS:
 
             # Show result
             print(tabulate(fromated_orders, headers=header_bar, tablefmt="simple", showindex="always"))
+
+            return True, id_list
         else:
             self.print_error("Request not successful:")
             exit(1)
@@ -313,6 +321,22 @@ class APOS:
         else:
             self.print_error("Request not successful:")
             exit(1)
+
+    def start_arrived(self):
+        print("Mark a pizza group order as arrived! \n")
+
+        _, id_list = self.show_user_groups(not_arrived=True, show_arrival=False)
+
+        while True:
+            user_input = input(f"Enter the group order which arrived: (0-{len(id_list) - 1}) ")
+
+            if user_input.isdigit() and 0 <= int(user_input) < len(id_list) - 1:
+                order_id = id_list[int(user_input)]
+                print("Set state for " + str(order_id))
+                self.api.set_order_arrived(order_id)
+                exit(0)
+            else:
+                print(f"{COLORS.FAIL}Invalid user input!{COLORS.ENDC}")
 
 
 if __name__ == "__main__":
