@@ -6,8 +6,8 @@ import yaml
 import getpass
 import os
 from tabulate import tabulate
-from misc import COLORS, pizza
-from api import APOS_API
+from .misc import COLORS, pizza
+from .api import APOS_API
 
 class APOS:
 
@@ -405,5 +405,8 @@ class APOS:
     def int_eurocent_to_float_euro_string(self, eurocent):
         return f"{float(eurocent)/100:.2f} €"
 
-if __name__ == "__main__":
+def run():
     APOS()
+
+if __name__ == "__main__":
+    run()

@@ -1,6 +1,6 @@
 import requests
 import datetime
-from misc import COLORS
+from .misc import COLORS
 
 class APOS_API:
     def __init__(self, base_url, token=None):
