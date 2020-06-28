@@ -18,14 +18,14 @@ class APOS:
 
         subparsers = parser.add_subparsers(title="command", description="command which shall be performed", dest="command")
 
-        parser_add = subparsers.add_parser("order", help="Add, view or modify group orders")
-        parser_add.add_argument("-l", "--list", dest="list", action='store_true', help="Lists all active group orders")
-        parser_add.add_argument("-c", "--create", dest="create", action='store_true', help="Creates a group order")
+        parser_order = subparsers.add_parser("order", help="Add, view or modify group orders")
+
+        parser_show = subparsers.add_parser("show", help="Add, view or modify group orders")
 
         parser_login = subparsers.add_parser("login",
                                             help="login to your account and create a token for authentication, do this first!")
 
-        args = parser.parse_args()
+        self.args = parser.parse_args()
 
         config_dir = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
         self.config_path = os.path.join(config_dir, "apos")
@@ -41,6 +41,9 @@ class APOS:
 
         if args.command == "order":
             self.start_order()
+
+        if args.command == "show":
+            self.start_show()
 
     def print_error(self, error):
         print(COLORS.FAIL + COLORS.BOLD + error + COLORS.ENDC)
@@ -91,7 +94,7 @@ class APOS:
 
             if user_input.isdigit():
                 if int(user_input) < num_groups:
-                    print("TODO DO stuff")
+                    self.create_item(self.get_id_for_active_order(int(user_input)))
                     return
                 else:
                     print(f"{COLORS.WARNING}Invalid group id!{COLORS.ENDC}")
@@ -99,7 +102,10 @@ class APOS:
                     return
             elif user_input == "c":
                 print("Creating a new group!")
-                self.create_group_order()
+                success, group_id = self.create_group_order()
+                if success:
+                    if input("Order some thing in the newly created group?\n ~ (y/n):") == "y":
+                        self.create_item(group_id)
                 return
             elif user_input == "q":
                 print("Exit APOS")
@@ -112,7 +118,10 @@ class APOS:
             print("\nThere are currently no active groups you can join. Feel free to create a new group and let others join your group.\n")
             if input("Create group?\n ~ (y/n):") == "y":
                 print("Creating a new group!")
-                self.create_group_order()
+                success, group_id = self.create_group_order()
+                if success:
+                    if input("Order some thing in the newly created group?\n ~ (y/n):") == "y":
+                        self.create_item(group_id)
                 return
             else:
                 print("Exit APOS")
@@ -159,8 +168,8 @@ class APOS:
             exit(1)
 
     def create_group_order(self):
+        print("\nYou are creating a group order . Other people can add their items to your group order. Please check if there are \n")
         order = {}
-        print("\nYou are creating a group order. Other people can add their items to your group order. Please check if there are \n")
         order['title'] = input("Whats the title of your order?  ")
         order['description'] = input("Enter a description:\n")
         order['deadline'] = (datetime.now() + timedelta(minutes=int(input("In how many minute do you order at the delivery service?  ")))).timestamp()
@@ -168,16 +177,129 @@ class APOS:
         order['deliverer'] = input("Whats the delivery service?  ")
 
         if input("\nCreate group? (y/n)  ") == "y":
-            if self.api.create_group_order(**order):
-                print("Order submitted " + COLORS.OKBLUE + "successfully!" + COLORS.ENDC)
-                return
+            success, group_id = self.api.create_group_order(**order)
+            if success:
+                print("Group created " + COLORS.OKBLUE + "successfully!" + COLORS.ENDC)
+                print("Use 'apos show groups' to browse the groups you are responsible for.")
+                return True, group_id
             else:
                 self.print_error("Order not successful:") # TODO better error msg
                 exit(1)
         else:
-            print("Abort")
-            return
+            if input("\nRetry creating a group? (y/n)  ") == "y":
+                return self.create_group_order()
+            else:
+                print("Abort")
+                return False, group_id
 
+    def create_item(self, group_id):
+        print(f"\nYou are creating a new item for the selected group order. \n") # TODO query group order for name
+        item = {}
+        item['name'] = input("What do you want to order? Enter pizza type and all extra whishes:\n")
+        item['tip_percent'] = input("Enter the amount of tip you want to spent (in percent):")
+        item['price'] = input("Whats the price of your pizza. \nStay fair and enter the real pice. \nThis makes things much easier for the group creator! Enter price in Euro:")
+
+
+        if input("\nCreate item? (y/n)") == "y":
+            if self.api.create_item(group_id, **item):
+                print("Item added " + COLORS.OKBLUE + "successfully!" + COLORS.ENDC)
+                print("Use 'apos show orders' to view your personal orders and see their current state.")
+                return True
+            else:
+                self.print_error("Order not successful!") # TODO better error msg
+
+        if input("\nRetry creating the item? (y/n)  ") == "y":
+            return self.create_item(group_id)
+        else:
+            print("Abort")
+            return False
+
+    def get_id_for_active_order(self, active_order_id):
+        return self.api.get_active_group_orders()[active_order_id]['id']
+
+    def start_show(self):
+        past = 2
+
+        print(f"This command is used to show recently (past {past} days) created groups or items.")
+
+        goal = input("\n1) Show ordered pizzas\n2) Show created groups\n\nEnter numer: (1|2) ")
+
+        if goal == "1":
+            self.show_user_items(past=past)
+        elif goal == "2":
+            self.show_user_groups(past=past)
+        else:
+            print("What are you doing? I asked for 1 or 2!")
+
+    def show_user_groups(self, past=2):
+        if self.api.pull_user_groups():
+            orders = self.api.get_user_groups()
+
+            #Format
+            fromated_orders = []
+            for order in orders:
+                if (datetime.now() - datetime.fromtimestamp(int(order['deadline']))).days < past:
+                    order_formated = {
+                        'title': order['title'],
+                        'description': order['description'],
+                        'location': order['location'],
+                        'deliverer': order['deliverer'],
+                        'deadline': datetime.fromtimestamp(int(order['deadline']))
+                        }
+
+                    if 'arrival' in order.keys():
+                        order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+
+                    fromated_orders.append(order_formated)
+
+            header_bar = {
+                'title': "Title",
+                'location': 'Location',
+                'deadline': "Deadline",
+                'description': "Description",
+                'deliverer': "Deliverer",
+                'arrival': "Arrival"}
+
+            # Show result
+            print(tabulate(fromated_orders, headers=header_bar, tablefmt="simple", showindex="always"))
+        else:
+            self.print_error("Request not successful:")
+            exit(1)
+
+    def show_user_items(self, past=2):
+        if self.api.pull_user_items():
+            items = self.api.get_user_items()
+
+            #Format
+            fromated_items = []
+            for item in items:
+                order = item['order']
+                if (datetime.now() - datetime.fromtimestamp(int(order['deadline']))).days < past:
+                    item_formated = {
+                        'name': item['name'],
+                        'tip': item['tip_percent'],
+                        'price': item['price'],
+                        'deadline': datetime.fromtimestamp(int(order['deadline'])),
+                        }
+
+                    if 'arrival' in order.keys():
+                        item_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+
+                    fromated_items.append(item_formated)
+
+            header_bar = {
+                'name': "Name",
+                'tip': 'Tip',
+                'price': "Price",
+                'deadline': "Deadline",
+                'arrival': "Arrival",
+                }
+
+            # Show result
+            print(tabulate(fromated_items, headers=header_bar, tablefmt="simple", showindex="always"))
+        else:
+            self.print_error("Request not successful:")
+            exit(1)
 
 
 if __name__ == "__main__":

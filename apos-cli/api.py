@@ -1,4 +1,5 @@
 import requests
+from misc import COLORS
 
 class APOS_API:
     def __init__(self, base_url, token=None):
@@ -6,6 +7,8 @@ class APOS_API:
         self.set_token(token)
 
         self.active_group_orders = []
+        self.user_items = []
+        self.user_groups = []
 
     def set_token(self, token):
         self.token = token
@@ -67,7 +70,49 @@ class APOS_API:
         resp = requests.put(self.base_url + "orders",
                         json=order,
                         headers=self._get_auth())
-        if resp.status_code == 200:
-            return True, None
+        if resp.status_code == 201:
+            return True, resp.json()['id']
         else:
-            return False, resp.status_code
+            return False, -1
+
+    def create_item(self, order_id, name, tip_percent, price):
+        item = {}
+        item['name'] = name
+        item['tip_percent'] = tip_percent
+        item['price'] = price
+
+        resp = requests.put(f"{self.base_url}orders/{order_id}/items",
+                        json=item,
+                        headers=self._get_auth())
+
+        if resp.status_code == 201:
+            return True
+        else:
+            return False
+
+    def pull_user_items(self):
+        resp = requests.get(self.base_url + "user/items",
+                            headers=self._get_auth())
+
+        if resp.status_code == 200:
+            self.user_items = resp.json()
+            return True
+        else:
+            return False
+
+    def get_user_items(self):
+        return self.user_items
+
+    def pull_user_groups(self):
+        resp = requests.get(self.base_url + "user/orders",
+                            headers=self._get_auth())
+
+        if resp.status_code == 200:
+            self.user_items = resp.json()
+            return True
+        else:
+            print(resp)
+            return False
+
+    def get_user_groups(self):
+        return self.user_items
