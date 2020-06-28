@@ -18,11 +18,13 @@ class APOS:
 
         subparsers = parser.add_subparsers(title="command", description="command which shall be performed", dest="command")
 
-        parser_order = subparsers.add_parser("order", help="Order a pizza")
+        parser_order = subparsers.add_parser("order", help="Add your order to a group order")
 
         parser_show = subparsers.add_parser("show", help="Show the items you ordered or the groups you created")
 
         parser_arrived = subparsers.add_parser("arrived", help="Flag a order as arrived")
+
+        parser_info = subparsers.add_parser("info", help="Get all infos to order at the delivery service")
 
         parser_login = subparsers.add_parser("login",
                                             help="Login to your account and create a token for authentication, do this first!")
@@ -51,6 +53,9 @@ class APOS:
 
         if args.command == "arrived":
             self.start_arrived()
+
+        if args.command == "info":
+            self.start_info()
 
     def print_error(self, error):
         print(COLORS.FAIL + COLORS.BOLD + error + COLORS.ENDC)
@@ -81,7 +86,7 @@ class APOS:
         if self.api.login(user, password):
             self.config['token'] = self.api.get_token()
             self.write_config()
-            print(f"{COLORS.BOLD}{COLORS.OKGREEN}Login Successful{COLORS.ENDC}")
+            print(f"{COLORS.BOLD}{COLORS.OKBLUE}Login Successful{COLORS.ENDC}")
         else:
             self.print_error("Login not successful:")
 
@@ -296,8 +301,8 @@ class APOS:
                 if (datetime.now() - datetime.fromtimestamp(int(order['deadline']))).days < past:
                     item_formated = {
                         'name': item['name'],
-                        'tip': item['tip_percent'],
-                        'price': item['price'],
+                        'tip': self.int_eurocent_to_float_euro_string(item['tip_percent']),
+                        'price': self.int_eurocent_to_float_euro_string(item['price']),
                         'deadline': datetime.fromtimestamp(int(order['deadline'])),
                         }
 
@@ -330,14 +335,75 @@ class APOS:
         while True:
             user_input = input(f"Enter the group order which arrived: (0-{len(id_list) - 1}) ")
 
-            if user_input.isdigit() and 0 <= int(user_input) < len(id_list) - 1:
+            if user_input.isdigit() and 0 <= int(user_input) < len(id_list):
                 order_id = id_list[int(user_input)]
-                print("Set state for " + str(order_id))
                 self.api.set_order_arrived(order_id)
                 exit(0)
             else:
                 print(f"{COLORS.FAIL}Invalid user input!{COLORS.ENDC}")
 
+    def start_info(self):
+        print("Get all infos for your group orders! \n")
+
+        _, id_list = self.show_user_groups(show_arrival=True)
+
+        if len(id_list) > 1:
+            while True:
+                user_input = input(f"Enter the group to get more information: (0-{len(id_list) - 1}) ")
+                if user_input.isdigit() and 0 <= int(user_input) < len(id_list):
+                    order_id = id_list[int(user_input)]
+                    self.group_ordered_items_summary(order_id)
+                    exit(0)
+                else:
+                    print(f"{COLORS.FAIL}Invalid user input!{COLORS.ENDC}")
+        elif len(id_list) == 0:
+            print("Only one group order avalabile.\n")
+            self.group_ordered_items_summary(id_list[0])
+        else:
+            print("No group order avalabile.\n")
+
+    def group_ordered_items_summary(self, group_id):
+        success, items = self.api.get_items_for_order(group_id)
+        if success:
+            if len(items) == 0:
+                print(f"\n{COLORS.WARNING}There are no orders item registered for the order!\n{COLORS.ENDC}")
+            else:
+                #Format
+                fromated_items = []
+
+                price = 0
+                tip = 0
+
+                for item in items:
+                    item_formated = {
+                        'name': item['name'],
+                        'tip': self.int_eurocent_to_float_euro_string(item['tip_percent']),
+                        'price': self.int_eurocent_to_float_euro_string(item['price']),
+                        }
+
+                    tip += item['tip_percent']
+                    price += item['price']
+
+                    fromated_items.append(item_formated)
+
+                header_bar = {
+                    'name': "Name",
+                    'tip': 'Tip',
+                    'price': "Price",
+                    }
+
+                # Show result
+                print(f"\n{COLORS.HEADER}{COLORS.BOLD}SUMMARY\n{COLORS.ENDC}")
+                print(tabulate(fromated_items, headers=header_bar, tablefmt="simple", showindex="always"))
+
+                print(f"{'-'*35}\n{COLORS.OKBLUE}{COLORS.BOLD}Total without tip: {self.int_eurocent_to_float_euro_string(price)}")
+                print(f"Total tip: {self.int_eurocent_to_float_euro_string(tip)}\n{COLORS.ENDC}")
+        else:
+            self.print_error("Request not successful:")
+            exit(1)
+
+    def int_eurocent_to_float_euro_string(self, eurocent):
+        return f"{float(eurocent)/100:.2f} €"
 
 if __name__ == "__main__":
     APOS()

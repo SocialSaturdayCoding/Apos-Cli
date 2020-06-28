@@ -131,3 +131,21 @@ class APOS_API:
             return True
         else:
             return False
+
+    def get_order_infos(self, order_id):
+        resp = requests.get(f"{self.base_url}orders/{order_id}",
+                            headers=self._get_auth())
+
+        if resp.status_code == 200:
+            return True, resp.json()
+        else:
+            return False, None
+
+    def get_items_for_order(self, order_id):
+        resp = requests.get(f"{self.base_url}orders/{order_id}/items",
+                            headers=self._get_auth())
+
+        if resp.status_code == 200:
+            return True, resp.json()
+        else:
+            return False, None
