@@ -168,7 +168,7 @@ class APOS:
             exit(1)
 
     def create_group_order(self):
-        print("\nYou are creating a group order . Other people can add their items to your group order. Please check if there are \n")
+        print("\nYou are creating a group order. Other people can add their items to your group order. Please check if there are \n")
         order = {}
         order['title'] = input("Whats the title of your order?  ")
         order['description'] = input("Enter a description:\n")
