@@ -47,6 +47,9 @@ class APOS:
         if args.command == "show":
             self.start_show()
 
+        if args.command == "edit":
+            self.start_show()
+
     def print_error(self, error):
         print(COLORS.FAIL + COLORS.BOLD + error + COLORS.ENDC)
 
@@ -130,7 +133,7 @@ class APOS:
                 print("Exit APOS")
                 exit(0)
 
-    def show_active_group_orders(self, pull=True):
+    def show_active_group_orders(self, pull=True, arrival=False):
         success = self.api.pull_active_group_orders()
 
         success = success or not pull
@@ -150,10 +153,11 @@ class APOS:
                     'deadline': datetime.fromtimestamp(int(order['deadline']))
                     }
 
-                if 'arrival' in order.keys():
-                    order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
-                else:
-                    order_formated['arrival'] = "Unknown"
+                if arrival:
+                    if 'arrival' in order.keys():
+                        order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+                    else:
+                        order_formated['arrival'] = "Unknown"
 
                 fromated_orders.append(order_formated)
 
@@ -175,7 +179,7 @@ class APOS:
     def create_group_order(self):
         print("\nYou are creating a group order. Other people can add their items to your group order. Please check if there are \n")
         order = {}
-        order['title'] = input("Whats the title of your order?  ")
+        order['title'] = input("Whats the title of your group?  ")
         order['description'] = input("Enter a description:\n")
         order['deadline'] = (datetime.now() + timedelta(minutes=int(input("In how many minute do you order at the delivery service?  ")))).timestamp()
         order['location'] = input("Where are you?  ")
