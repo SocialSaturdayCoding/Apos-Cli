@@ -27,6 +27,8 @@ class APOS:
 
         args = parser.parse_args()
 
+        self.default_base_url = "http://localhost:5000/api/v1/"
+
         config_dir = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
         self.config_path = os.path.join(config_dir, "apos")
         self.config = {}
@@ -49,13 +51,14 @@ class APOS:
         print(COLORS.FAIL + COLORS.BOLD + error + COLORS.ENDC)
 
     def load_config(self):
-        try:
+        if not os.path.isfile(self.config_path):
+            self.config['base_url'] = self.default_base_url
+            self.write_config()
+            print(f"{COLORS.WARNING}Create new config!{COLORS.ENDC}")
+        else:
             f = open(self.config_path, mode='r')
             self.config = yaml.load(f, Loader=yaml.Loader)
             f.close()
-        except FileNotFoundError:
-            self.print_error("Config file not found!") # TODO config creation wizard
-            exit(1)
 
     def write_config(self):
         try:
