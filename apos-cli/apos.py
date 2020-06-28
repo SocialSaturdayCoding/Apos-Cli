@@ -25,7 +25,7 @@ class APOS:
         parser_login = subparsers.add_parser("login",
                                             help="login to your account and create a token for authentication, do this first!")
 
-        self.args = parser.parse_args()
+        args = parser.parse_args()
 
         config_dir = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
         self.config_path = os.path.join(config_dir, "apos")
