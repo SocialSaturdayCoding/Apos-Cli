@@ -9,6 +9,17 @@ class COLORS:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+
+
+def int_eurocent_to_float_euro_string(eurocent):
+    return f"{float(eurocent)/100:.2f} €"
+
+
+def print_error(error):
+    print(COLORS.FAIL + COLORS.BOLD + error + COLORS.ENDC)
+
+
+
 pizza = \
 f"""{COLORS.WARNING}{COLORS.BOLD}
         ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣤⣶⣶⣦⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀

@@ -1,12 +1,12 @@
 #! /usr/bin/python3
 
-import argparse
-from datetime import datetime, timedelta
+import os
 import yaml
 import getpass
-import os
+import argparse
+from datetime import datetime, timedelta
 from tabulate import tabulate
-from .misc import COLORS, pizza
+from .misc import COLORS, pizza, int_eurocent_to_float_euro_string, parse_input, print_error
 from .api import APOS_API
 
 class APOS:
@@ -56,9 +56,6 @@ class APOS:
 
         if args.command == "info":
             self.start_info()
-
-    def print_error(self, error):
-        print(COLORS.FAIL + COLORS.BOLD + error + COLORS.ENDC)
 
     def load_config(self):
         if not os.path.isfile(self.config_path):
@@ -301,8 +298,8 @@ class APOS:
                 if (datetime.now() - datetime.fromtimestamp(int(order['deadline']))).days < past:
                     item_formated = {
                         'name': item['name'],
-                        'tip': self.int_eurocent_to_float_euro_string(item['tip_percent']),
-                        'price': self.int_eurocent_to_float_euro_string(item['price']),
+                        'tip': int_eurocent_to_float_euro_string(item['tip_percent']),
+                        'price': int_eurocent_to_float_euro_string(item['price']),
                         'deadline': datetime.fromtimestamp(int(order['deadline'])),
                         }
 
@@ -377,8 +374,8 @@ class APOS:
                 for item in items:
                     item_formated = {
                         'name': item['name'],
-                        'tip': self.int_eurocent_to_float_euro_string(item['tip_percent']),
-                        'price': self.int_eurocent_to_float_euro_string(item['price']),
+                        'tip': int_eurocent_to_float_euro_string(item['tip_percent']),
+                        'price': int_eurocent_to_float_euro_string(item['price']),
                         }
 
                     tip += item['tip_percent']
@@ -396,14 +393,12 @@ class APOS:
                 print(f"\n{COLORS.HEADER}{COLORS.BOLD}SUMMARY\n{COLORS.ENDC}")
                 print(tabulate(fromated_items, headers=header_bar, tablefmt="simple", showindex="always"))
 
-                print(f"{'-'*35}\n{COLORS.OKBLUE}{COLORS.BOLD}Total without tip: {self.int_eurocent_to_float_euro_string(price)}")
-                print(f"Total tip: {self.int_eurocent_to_float_euro_string(tip)}\n{COLORS.ENDC}")
+                print(f"{'-'*35}\n{COLORS.OKBLUE}{COLORS.BOLD}Total without tip: {int_eurocent_to_float_euro_string(price)}")
+                print(f"Total tip: {int_eurocent_to_float_euro_string(tip)}\n{COLORS.ENDC}")
         else:
             self.print_error("Request not successful:")
             exit(1)
 
-    def int_eurocent_to_float_euro_string(self, eurocent):
-        return f"{float(eurocent)/100:.2f} €"
 
 def run():
     APOS()
