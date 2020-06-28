@@ -7,4 +7,4 @@ This simple cli allows you to create group orders or add items (e.g. pizza) to a
 
 ## This project is still work in progress and pre alpha.
 Features change frequently.
-Therefore a popper README follow in a later stage of the project.
+Therefore a proper README follow in a later stage of the project.

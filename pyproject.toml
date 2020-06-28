@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Apos-Cli"
-version = "0.1.2"
+version = "0.1.4"
 description = "A command line interface for APOS the Agile Pizza Ordering Service."
 authors = ["Florian Vahl <florian@flova.de>",]
 license = "MIT"
