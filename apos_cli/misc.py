@@ -1,3 +1,4 @@
+import re
 
 class COLORS:
     HEADER = '\033[95m'
@@ -9,6 +10,25 @@ class COLORS:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+
+def parse_input(text, regex, tries=3, to_float=False):
+    for i in range(tries):
+
+        if i == 0:
+            input_text = input(text)
+        else:
+            input_text = input(f"Invalid input, try again ({i + 1}/{tries})")
+
+        if to_float:
+            input_text = input_text.replace(",", ".")
+
+        pattern = re.compile(regex)
+        if pattern.match(input_text):
+            if to_float:
+                return float(input_text)
+            return input_text
+    print(f"{COLORS.FAIL}Abort!{COLORS.ENDC}")
+    exit(0)
 
 
 def int_eurocent_to_float_euro_string(eurocent):
