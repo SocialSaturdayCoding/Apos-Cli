@@ -149,6 +149,8 @@ class APOS:
 
                 if 'arrival' in order.keys():
                     order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+                else:
+                    order_formated['arrival'] = "Unknown"
 
                 fromated_orders.append(order_formated)
 
@@ -249,6 +251,8 @@ class APOS:
 
                     if 'arrival' in order.keys():
                         order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+                    else:
+                        order_formated['arrival'] = "Unknown"
 
                     fromated_orders.append(order_formated)
 
@@ -284,6 +288,8 @@ class APOS:
 
                     if 'arrival' in order.keys():
                         item_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+                    else:
+                        item_formated['arrival'] = "Unknown"
 
                     fromated_items.append(item_formated)
 
