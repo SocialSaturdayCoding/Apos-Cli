@@ -382,9 +382,9 @@ class APOS:
                 price += item['price']
 
                 item_tip = 0
-                if item['tip_absolute'] is not None:
+                if item['tip_absolute']:
                     item_tip = item['tip_absolute']
-                elif item['tip_percent'] is not None:
+                elif item['tip_percent']:
                     item_tip = int(float(item['tip_percent']) / 100.0 * item['price'])
 
                 tip += item_tip
