@@ -376,14 +376,24 @@ class APOS:
             tip = 0
 
             for item in items:
+
+                if item['price'] is None:
+                    item['price'] = 0
+                price += item['price']
+
+                item_tip = 0
+                if item['tip_absolute'] is not None:
+                    item_tip = item['tip_absolute']
+                elif item['tip_percent'] is not None:
+                    item_tip = int(float(item['tip_percent']) / 100.0 * item['price'])
+
+                tip += item_tip
+
                 item_formated = {
                     'name': item['name'],
-                    'tip': int_eurocent_to_euro_string(item['tip_absolute']),
+                    'tip': int_eurocent_to_euro_string(item_tip),
                     'price': int_eurocent_to_euro_string(item['price']),
                     }
-
-                tip += item['tip_absolute']
-                price += item['price']
 
                 fromated_items.append(item_formated)
 
