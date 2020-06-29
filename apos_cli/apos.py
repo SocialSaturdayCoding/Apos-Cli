@@ -51,6 +51,8 @@ class APOS:
             exit(0)
         except ConnectionException as ce:
             print(f"{COLORS.WARNING}Failed to contact the backend!{COLORS.ENDC}")
+        except KeyboardInterrupt as ki:
+            print(f"{COLORS.WARNING}\nExit APOS.{COLORS.ENDC}")
             exit(0)
 
 
