@@ -216,20 +216,16 @@ class APOS:
         order['deliverer'] = input("Whats the delivery service?  ")
 
         if input("\nCreate group? (y/n)  ") == "y":
-            success, group_id = self.api.create_group_order(**order)
-            if success:
-                print("Group created " + COLORS.OKBLUE + "successfully!" + COLORS.ENDC)
-                print("Use 'apos show groups' to browse the groups you are responsible for.")
-                return True, group_id
-            else:
-                print_error("Order not successful") # TODO better error msg
-                exit(1)
+            group_id = self.api.create_group_order(**order)
+            print("Group created " + COLORS.OKBLUE + "successfully!" + COLORS.ENDC)
+            print("Use 'apos show' to browse the groups you are responsible for.")
+            return group_id
         else:
             if input("\nRetry creating a group? (y/n)  ") == "y":
                 return self.create_group_order()
             else:
                 print("Abort")
-                return False, group_id
+                return group_id
 
     def create_item(self, group_id):
         print(f"\nYou are creating a new item for the selected group order. \n") # TODO query group order for name
@@ -240,18 +236,15 @@ class APOS:
         item['tip_absolute'] = parse_input("Enter the amount of tip you want to spent (in €): ", r"^[+]?[0-9]*\.?[0-9]?[0-9]$", to_float=True) * 100
 
         if input("\nCreate item? (y/n)") == "y":
-            if self.api.create_item(group_id, **item):
-                print("Item added " + COLORS.OKBLUE + "successfully!" + COLORS.ENDC)
-                print("Use 'apos show orders' to view your personal orders and see their current state.")
-                return True
-            else:
-                print_error("Order not successful!") # TODO better error msg
+            self.api.create_item(group_id, **item)
+            print("Item added " + COLORS.OKBLUE + "successfully!" + COLORS.ENDC)
+            print("Use 'apos show orders' to view your personal orders and see their current state.")
+            return
 
         if input("\nRetry creating the item? (y/n)  ") == "y":
             return self.create_item(group_id)
         else:
             print("Abort")
-            return False
 
     def get_id_for_active_order(self, active_order_id):
         return self.api.get_active_group_orders()[active_order_id]['id']
