@@ -78,10 +78,11 @@ class APOS_API:
 
         return resp.json()['id']
 
-    def create_item(self, order_id, name, tip_absolute, price):
+    def create_item(self, order_id, name, price, tip_absolute=0, tip_percent=0):
         item = {}
         item['name'] = name
         item['tip_absolute'] = tip_absolute
+        item['tip_percent'] = tip_percent
         item['price'] = price
 
         try:
