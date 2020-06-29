@@ -137,48 +137,55 @@ class APOS:
                 print("Exit APOS")
                 exit(0)
 
-    def show_active_group_orders(self, pull=True, arrival=False):
-        success = self.api.pull_active_group_orders()
+    def start_info(self):
+        print("Get all infos for your group orders! \n")
 
-        success = success or not pull
+        _, id_list = self.show_user_groups(show_arrival=True)
 
-        if success:
-            orders = self.api.get_active_group_orders()
-
-            #Format
-            fromated_orders = []
-            for order in orders:
-                order_formated = {
-                    'title': order['title'],
-                    'description': order['description'],
-                    'location': order['location'],
-                    'deliverer': order['deliverer'],
-                    'owner': order['owner']['username'],
-                    'deadline': datetime.fromtimestamp(int(order['deadline']))
-                    }
-
-                if arrival:
-                    if 'arrival' in order.keys():
-                        order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
-                    else:
-                        order_formated['arrival'] = "Unknown"
-
-                fromated_orders.append(order_formated)
-
-            header_bar = {
-                'owner': "Creator",
-                'title': "Title",
-                'location': 'Location',
-                'deadline': "Deadline",
-                'description': "Description",
-                'deliverer': "Deliverer",
-                'arrival': "Arrival"}
-
-            # Show result
-            print(tabulate(fromated_orders, headers=header_bar, tablefmt="simple", showindex="always"))
+        if len(id_list) > 1:
+            while True:
+                user_input = input(f"Enter the group to get more information: (0-{len(id_list) - 1}) ")
+                if user_input.isdigit() and 0 <= int(user_input) < len(id_list):
+                    order_id = id_list[int(user_input)]
+                    self.group_ordered_items_summary(order_id)
+                    exit(0)
+                else:
+                    print(f"{COLORS.FAIL}Invalid user input!{COLORS.ENDC}")
+        elif len(id_list) == 0:
+            print("Only one group order avalabile.\n")
+            self.group_ordered_items_summary(id_list[0])
         else:
-            self.print_error("Request not successful:")
-            exit(1)
+            print("No group order avalabile.\n")
+
+
+    def start_show(self):
+        past = 2
+
+        print(f"This command is used to show recently (past {past} days) created groups or items.")
+
+        goal = input("\n1) Show ordered pizzas\n2) Show created groups\n\nEnter numer: (1|2) ")
+
+        if goal == "1":
+            self.show_user_items(past=past)
+        elif goal == "2":
+            self.show_user_groups(past=past)
+        else:
+            print("What are you doing? I asked for 1 or 2!")
+
+    def start_arrived(self):
+        print("Mark a pizza group order as arrived! \n")
+
+        _, id_list = self.show_user_groups(not_arrived=True, show_arrival=False)
+
+        while True:
+            user_input = input(f"Enter the group order which arrived: (0-{len(id_list) - 1}) ")
+
+            if user_input.isdigit() and 0 <= int(user_input) < len(id_list):
+                order_id = id_list[int(user_input)]
+                self.api.set_order_arrived(order_id)
+                exit(0)
+            else:
+                print(f"{COLORS.FAIL}Invalid user input!{COLORS.ENDC}")
 
     def create_group_order(self):
         print("\nYou are creating a group order. Other people can add their items to your group order. Please check if there are \n")
@@ -229,20 +236,6 @@ class APOS:
 
     def get_id_for_active_order(self, active_order_id):
         return self.api.get_active_group_orders()[active_order_id]['id']
-
-    def start_show(self):
-        past = 2
-
-        print(f"This command is used to show recently (past {past} days) created groups or items.")
-
-        goal = input("\n1) Show ordered pizzas\n2) Show created groups\n\nEnter numer: (1|2) ")
-
-        if goal == "1":
-            self.show_user_items(past=past)
-        elif goal == "2":
-            self.show_user_groups(past=past)
-        else:
-            print("What are you doing? I asked for 1 or 2!")
 
     def show_user_groups(self, past=2, not_arrived=False, show_arrival=True):
         if self.api.pull_user_groups():
@@ -324,40 +317,49 @@ class APOS:
             self.print_error("Request not successful:")
             exit(1)
 
-    def start_arrived(self):
-        print("Mark a pizza group order as arrived! \n")
 
-        _, id_list = self.show_user_groups(not_arrived=True, show_arrival=False)
+    def show_active_group_orders(self, pull=True, arrival=False):
+        success = self.api.pull_active_group_orders()
 
-        while True:
-            user_input = input(f"Enter the group order which arrived: (0-{len(id_list) - 1}) ")
+        success = success or not pull
 
-            if user_input.isdigit() and 0 <= int(user_input) < len(id_list):
-                order_id = id_list[int(user_input)]
-                self.api.set_order_arrived(order_id)
-                exit(0)
-            else:
-                print(f"{COLORS.FAIL}Invalid user input!{COLORS.ENDC}")
+        if success:
+            orders = self.api.get_active_group_orders()
 
-    def start_info(self):
-        print("Get all infos for your group orders! \n")
+            #Format
+            fromated_orders = []
+            for order in orders:
+                order_formated = {
+                    'title': order['title'],
+                    'description': order['description'],
+                    'location': order['location'],
+                    'deliverer': order['deliverer'],
+                    'owner': order['owner']['username'],
+                    'deadline': datetime.fromtimestamp(int(order['deadline']))
+                    }
 
-        _, id_list = self.show_user_groups(show_arrival=True)
+                if arrival:
+                    if 'arrival' in order.keys():
+                        order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+                    else:
+                        order_formated['arrival'] = "Unknown"
 
-        if len(id_list) > 1:
-            while True:
-                user_input = input(f"Enter the group to get more information: (0-{len(id_list) - 1}) ")
-                if user_input.isdigit() and 0 <= int(user_input) < len(id_list):
-                    order_id = id_list[int(user_input)]
-                    self.group_ordered_items_summary(order_id)
-                    exit(0)
-                else:
-                    print(f"{COLORS.FAIL}Invalid user input!{COLORS.ENDC}")
-        elif len(id_list) == 0:
-            print("Only one group order avalabile.\n")
-            self.group_ordered_items_summary(id_list[0])
+                fromated_orders.append(order_formated)
+
+            header_bar = {
+                'owner': "Creator",
+                'title': "Title",
+                'location': 'Location',
+                'deadline': "Deadline",
+                'description': "Description",
+                'deliverer': "Deliverer",
+                'arrival': "Arrival"}
+
+            # Show result
+            print(tabulate(fromated_orders, headers=header_bar, tablefmt="simple", showindex="always"))
         else:
-            print("No group order avalabile.\n")
+            self.print_error("Request not successful:")
+            exit(1)
 
     def group_ordered_items_summary(self, group_id):
         success, items = self.api.get_items_for_order(group_id)
