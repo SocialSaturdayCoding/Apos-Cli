@@ -7,7 +7,7 @@ import argparse
 from datetime import datetime, timedelta
 from tabulate import tabulate
 from .misc import COLORS, pizza, int_eurocent_to_float_euro_string, parse_input, print_error
-from .api import APOS_API
+from .api import APOS_API, AuthException, NoTokenException, ConnectionException, GeneralAPIException
 
 class APOS:
 
@@ -41,9 +41,24 @@ class APOS:
 
         self.api = APOS_API(self.config["base_url"], self.config.get("token", None))
 
+        try:
+            self.decisions(args)
+        except AuthException as ae:
+            print(f"{COLORS.WARNING}Invalid authentification!{COLORS.ENDC}")
+            exit(0)
+        except NoTokenException as nte:
+            print(f"{COLORS.WARNING}Please login before any other command!{COLORS.ENDC}")
+            exit(0)
+        except ConnectionException as ce:
+            print(f"{COLORS.WARNING}Failed to contact the backend!{COLORS.ENDC}")
+            exit(0)
+
+
+    def decisions(self, args):
         if args.command == "login":
             self.login()
-            exit(0)
+
+        self.api.test_auth_connection()
 
         if args.command == "order":
             self.start_order()
@@ -73,25 +88,29 @@ class APOS:
             yaml.dump(self.config, f)
             f.close()
         except Exception as ex:
-            self.print_error(ex)
+            print_error(ex)
             exit(1)
 
     def login(self):
         user = input("Enter Username: ")
         password = getpass.unix_getpass("Enter Password: ")
 
-        if self.api.login(user, password):
-            self.config['token'] = self.api.get_token()
-            self.write_config()
-            print(f"{COLORS.BOLD}{COLORS.OKBLUE}Login Successful{COLORS.ENDC}")
-        else:
-            self.print_error("Login not successful:")
-
+        try:
+            self.api.login(user, password)
+        except AuthException as ae:
+            print_error("Login not successful:")
             if input("Try again? (y/n)") == "y":
-                self.login()
+                return self.login()
             else:
                 print("Exit cli")
                 exit(1)
+        except GeneralAPIException as gae:
+            print_error(f"General API error!\n{gae.message}")
+            exit(1)
+
+        self.config['token'] = self.api.get_token()
+        self.write_config()
+        print(f"{COLORS.BOLD}{COLORS.OKBLUE}Login Successful{COLORS.ENDC}")
 
     def start_order(self):
         print("Oh I see you are hungry. The purpose of APOS is to order Pizza together.\n")
@@ -112,26 +131,23 @@ class APOS:
                     return
             elif user_input == "c":
                 print("Creating a new group!")
-                success, group_id = self.create_group_order()
-                if success:
-                    if input("Order some thing in the newly created group?\n ~ (y/n):") == "y":
-                        self.create_item(group_id)
+                group_id = self.create_group_order()
+                if input("Order some thing in the newly created group?\n ~ (y/n):") == "y":
+                    self.create_item(group_id)
                 return
             elif user_input == "q":
                 print("Exit APOS")
                 exit(0)
             else:
-                self.print_error("Invalid input. Try again!")
-                self.start_order()
-                return
+                print_error("Invalid input. Try again!")
+                return self.start_order()
         else:
             print("\nThere are currently no active groups you can join. Feel free to create a new group and let others join your group.\n")
             if input("Create group?\n ~ (y/n):") == "y":
                 print("Creating a new group!")
-                success, group_id = self.create_group_order()
-                if success:
-                    if input("Order some thing in the newly created group?\n ~ (y/n):") == "y":
-                        self.create_item(group_id)
+                group_id = self.create_group_order()
+                if input("Order some thing in the newly created group?\n ~ (y/n):") == "y":
+                    self.create_item(group_id)
                 return
             else:
                 print("Exit APOS")
@@ -140,7 +156,7 @@ class APOS:
     def start_info(self):
         print("Get all infos for your group orders! \n")
 
-        _, id_list = self.show_user_groups(show_arrival=True)
+        id_list = self.show_user_groups(show_arrival=True)
 
         if len(id_list) > 1:
             while True:
@@ -148,9 +164,9 @@ class APOS:
                 if user_input.isdigit() and 0 <= int(user_input) < len(id_list):
                     order_id = id_list[int(user_input)]
                     self.group_ordered_items_summary(order_id)
-                    exit(0)
+                    return
                 else:
-                    print(f"{COLORS.FAIL}Invalid user input!{COLORS.ENDC}")
+                    print_error("Invalid user input!")
         elif len(id_list) == 0:
             print("Only one group order avalabile.\n")
             self.group_ordered_items_summary(id_list[0])
@@ -203,7 +219,7 @@ class APOS:
                 print("Use 'apos show groups' to browse the groups you are responsible for.")
                 return True, group_id
             else:
-                self.print_error("Order not successful:") # TODO better error msg
+                print_error("Order not successful") # TODO better error msg
                 exit(1)
         else:
             if input("\nRetry creating a group? (y/n)  ") == "y":
@@ -226,7 +242,7 @@ class APOS:
                 print("Use 'apos show orders' to view your personal orders and see their current state.")
                 return True
             else:
-                self.print_error("Order not successful!") # TODO better error msg
+                print_error("Order not successful!") # TODO better error msg
 
         if input("\nRetry creating the item? (y/n)  ") == "y":
             return self.create_item(group_id)
@@ -238,168 +254,155 @@ class APOS:
         return self.api.get_active_group_orders()[active_order_id]['id']
 
     def show_user_groups(self, past=2, not_arrived=False, show_arrival=True):
-        if self.api.pull_user_groups():
-            orders = self.api.get_user_groups()
+        self.api.pull_user_groups()
 
-            id_list = []
+        orders = self.api.get_user_groups()
 
-            #Format
-            fromated_orders = []
-            for order in orders:
-                if (datetime.now() - datetime.fromtimestamp(int(order['deadline']))).days < past:
-                    if not 'arrival' in order.keys() or not not_arrived:
-                        order_formated = {
-                            'title': order['title'],
-                            'description': order['description'],
-                            'location': order['location'],
-                            'deliverer': order['deliverer'],
-                            'deadline': datetime.fromtimestamp(int(order['deadline']))
-                            }
-                        if show_arrival:
-                            if 'arrival' in order.keys():
-                                order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
-                            else:
-                                order_formated['arrival'] = "Unknown"
+        id_list = []
 
-                        fromated_orders.append(order_formated)
-                        id_list.append(order['id'])
+        #Format
+        fromated_orders = []
+        for order in orders:
+            if (datetime.now() - datetime.fromtimestamp(int(order['deadline']))).days < past:
+                if not 'arrival' in order.keys() or not not_arrived:
+                    order_formated = {
+                        'title': order['title'],
+                        'description': order['description'],
+                        'location': order['location'],
+                        'deliverer': order['deliverer'],
+                        'deadline': datetime.fromtimestamp(int(order['deadline']))
+                        }
+                    if show_arrival:
+                        if 'arrival' in order.keys():
+                            order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+                        else:
+                            order_formated['arrival'] = "Unknown"
 
-            header_bar = {
-                'title': "Title",
-                'location': 'Location',
-                'deadline': "Deadline",
-                'description': "Description",
-                'deliverer': "Deliverer",
-                'arrival': "Arrival"}
+                    fromated_orders.append(order_formated)
+                    id_list.append(order['id'])
 
-            # Show result
-            print(tabulate(fromated_orders, headers=header_bar, tablefmt="simple", showindex="always"))
+        header_bar = {
+            'title': "Title",
+            'location': 'Location',
+            'deadline': "Deadline",
+            'description': "Description",
+            'deliverer': "Deliverer",
+            'arrival': "Arrival"}
 
-            return True, id_list
-        else:
-            self.print_error("Request not successful:")
-            exit(1)
+        # Show result
+        print(tabulate(fromated_orders, headers=header_bar, tablefmt="simple", showindex="always"))
+
+        return id_list
 
     def show_user_items(self, past=2):
-        if self.api.pull_user_items():
-            items = self.api.get_user_items()
+        self.api.pull_user_items()
 
+        items = self.api.get_user_items()
+
+        #Format
+        fromated_items = []
+        for item in items:
+            order = item['order']
+            if (datetime.now() - datetime.fromtimestamp(int(order['deadline']))).days < past:
+                item_formated = {
+                    'name': item['name'],
+                    'tip': int_eurocent_to_float_euro_string(item['tip_percent']),
+                    'price': int_eurocent_to_float_euro_string(item['price']),
+                    'deadline': datetime.fromtimestamp(int(order['deadline'])),
+                    }
+
+                if 'arrival' in order.keys():
+                    item_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+                else:
+                    item_formated['arrival'] = "Unknown"
+
+                fromated_items.append(item_formated)
+
+        header_bar = {
+            'name': "Name",
+            'tip': 'Tip',
+            'price': "Price",
+            'deadline': "Deadline",
+            'arrival': "Arrival",
+            }
+
+        # Show result
+        print(tabulate(fromated_items, headers=header_bar, tablefmt="simple", showindex="always"))
+
+    def show_active_group_orders(self, pull=True, arrival=False):
+        if pull:
+            self.api.pull_active_group_orders()
+
+        orders = self.api.get_active_group_orders()
+
+        #Format
+        fromated_orders = []
+        for order in orders:
+            order_formated = {
+                'title': order['title'],
+                'description': order['description'],
+                'location': order['location'],
+                'deliverer': order['deliverer'],
+                'owner': order['owner']['username'],
+                'deadline': datetime.fromtimestamp(int(order['deadline']))
+                }
+
+            if arrival:
+                if 'arrival' in order.keys():
+                    order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
+                else:
+                    order_formated['arrival'] = "Unknown"
+
+            fromated_orders.append(order_formated)
+
+        header_bar = {
+            'owner': "Creator",
+            'title': "Title",
+            'location': 'Location',
+            'deadline': "Deadline",
+            'description': "Description",
+            'deliverer': "Deliverer",
+            'arrival': "Arrival"}
+
+        # Show result
+        print(tabulate(fromated_orders, headers=header_bar, tablefmt="simple", showindex="always"))
+
+    def group_ordered_items_summary(self, group_id):
+        items = self.api.get_items_for_order(group_id)
+
+        if len(items) == 0:
+            print(f"\n{COLORS.WARNING}There are no orders item registered for the order!\n{COLORS.ENDC}")
+        else:
             #Format
             fromated_items = []
+
+            price = 0
+            tip = 0
+
             for item in items:
-                order = item['order']
-                if (datetime.now() - datetime.fromtimestamp(int(order['deadline']))).days < past:
-                    item_formated = {
-                        'name': item['name'],
-                        'tip': int_eurocent_to_float_euro_string(item['tip_percent']),
-                        'price': int_eurocent_to_float_euro_string(item['price']),
-                        'deadline': datetime.fromtimestamp(int(order['deadline'])),
-                        }
+                item_formated = {
+                    'name': item['name'],
+                    'tip': int_eurocent_to_float_euro_string(item['tip_percent']),
+                    'price': int_eurocent_to_float_euro_string(item['price']),
+                    }
 
-                    if 'arrival' in order.keys():
-                        item_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
-                    else:
-                        item_formated['arrival'] = "Unknown"
+                tip += item['tip_percent']
+                price += item['price']
 
-                    fromated_items.append(item_formated)
+                fromated_items.append(item_formated)
 
             header_bar = {
                 'name': "Name",
                 'tip': 'Tip',
                 'price': "Price",
-                'deadline': "Deadline",
-                'arrival': "Arrival",
                 }
 
             # Show result
+            print(f"\n{COLORS.HEADER}{COLORS.BOLD}SUMMARY\n{COLORS.ENDC}")
             print(tabulate(fromated_items, headers=header_bar, tablefmt="simple", showindex="always"))
-        else:
-            self.print_error("Request not successful:")
-            exit(1)
 
-
-    def show_active_group_orders(self, pull=True, arrival=False):
-        success = self.api.pull_active_group_orders()
-
-        success = success or not pull
-
-        if success:
-            orders = self.api.get_active_group_orders()
-
-            #Format
-            fromated_orders = []
-            for order in orders:
-                order_formated = {
-                    'title': order['title'],
-                    'description': order['description'],
-                    'location': order['location'],
-                    'deliverer': order['deliverer'],
-                    'owner': order['owner']['username'],
-                    'deadline': datetime.fromtimestamp(int(order['deadline']))
-                    }
-
-                if arrival:
-                    if 'arrival' in order.keys():
-                        order_formated['arrival'] = datetime.fromtimestamp(int(order['arrival']))
-                    else:
-                        order_formated['arrival'] = "Unknown"
-
-                fromated_orders.append(order_formated)
-
-            header_bar = {
-                'owner': "Creator",
-                'title': "Title",
-                'location': 'Location',
-                'deadline': "Deadline",
-                'description': "Description",
-                'deliverer': "Deliverer",
-                'arrival': "Arrival"}
-
-            # Show result
-            print(tabulate(fromated_orders, headers=header_bar, tablefmt="simple", showindex="always"))
-        else:
-            self.print_error("Request not successful:")
-            exit(1)
-
-    def group_ordered_items_summary(self, group_id):
-        success, items = self.api.get_items_for_order(group_id)
-        if success:
-            if len(items) == 0:
-                print(f"\n{COLORS.WARNING}There are no orders item registered for the order!\n{COLORS.ENDC}")
-            else:
-                #Format
-                fromated_items = []
-
-                price = 0
-                tip = 0
-
-                for item in items:
-                    item_formated = {
-                        'name': item['name'],
-                        'tip': int_eurocent_to_float_euro_string(item['tip_percent']),
-                        'price': int_eurocent_to_float_euro_string(item['price']),
-                        }
-
-                    tip += item['tip_percent']
-                    price += item['price']
-
-                    fromated_items.append(item_formated)
-
-                header_bar = {
-                    'name': "Name",
-                    'tip': 'Tip',
-                    'price': "Price",
-                    }
-
-                # Show result
-                print(f"\n{COLORS.HEADER}{COLORS.BOLD}SUMMARY\n{COLORS.ENDC}")
-                print(tabulate(fromated_items, headers=header_bar, tablefmt="simple", showindex="always"))
-
-                print(f"{'-'*35}\n{COLORS.OKBLUE}{COLORS.BOLD}Total without tip: {int_eurocent_to_float_euro_string(price)}")
-                print(f"Total tip: {int_eurocent_to_float_euro_string(tip)}\n{COLORS.ENDC}")
-        else:
-            self.print_error("Request not successful:")
-            exit(1)
+            print(f"{'-'*35}\n{COLORS.OKBLUE}{COLORS.BOLD}Total without tip: {int_eurocent_to_float_euro_string(price)}")
+            print(f"Total tip: {int_eurocent_to_float_euro_string(tip)}\n{COLORS.ENDC}")
 
 
 def run():
