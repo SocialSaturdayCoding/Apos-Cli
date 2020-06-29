@@ -31,8 +31,11 @@ def parse_input(text, regex, tries=3, to_float=False):
     exit(0)
 
 
-def int_eurocent_to_float_euro_string(eurocent):
-    return f"{float(eurocent)/100:.2f} €"
+def int_eurocent_to_euro_string(eurocent):
+    if eurocent:
+        return f"{float(eurocent)/100:.2f} €"
+    else:
+        return "0.00 €"
 
 
 def print_error(error):

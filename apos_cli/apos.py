@@ -6,7 +6,7 @@ import getpass
 import argparse
 from datetime import datetime, timedelta
 from tabulate import tabulate
-from .misc import COLORS, pizza, int_eurocent_to_float_euro_string, parse_input, print_error
+from .misc import COLORS, pizza, int_eurocent_to_euro_string, parse_input, print_error
 from .api import APOS_API, AuthException, NoTokenException, ConnectionException, GeneralAPIException
 
 class APOS:
@@ -235,7 +235,7 @@ class APOS:
         print(f"\nYou are creating a new item for the selected group order. \n") # TODO query group order for name
         item = {}
         item['name'] = input("What do you want to order? Enter pizza type and all extra whishes:\n")
-        item['tip_percent'] = parse_input("Enter the amount of tip you want to spent (in %): ", r"^((100)|(\d{0,2}))$")
+        item['tip_absolute'] = parse_input("Enter the amount of tip you want to spent (in %): ", r"^((100)|(\d{0,2}))$")
         item['price'] = parse_input("Whats the price of your pizza. \nStay fair and enter the real pice. \nThis makes things much easier for the group creator! Enter price in €:",
             r"^[+]?[0-9]*\.?[0-9]?[0-9]$", to_float=True) * 100
 
@@ -309,8 +309,8 @@ class APOS:
             if (datetime.now() - datetime.fromtimestamp(int(order['deadline']))).days < past:
                 item_formated = {
                     'name': item['name'],
-                    'tip': int_eurocent_to_float_euro_string(item['tip_percent']),
-                    'price': int_eurocent_to_float_euro_string(item['price']),
+                    'tip': int_eurocent_to_euro_string(item['tip_absolute']),
+                    'price': int_eurocent_to_euro_string(item['price']),
                     'deadline': datetime.fromtimestamp(int(order['deadline'])),
                     }
 
@@ -385,11 +385,11 @@ class APOS:
             for item in items:
                 item_formated = {
                     'name': item['name'],
-                    'tip': int_eurocent_to_float_euro_string(item['tip_percent']),
-                    'price': int_eurocent_to_float_euro_string(item['price']),
+                    'tip': int_eurocent_to_euro_string(item['tip_absolute']),
+                    'price': int_eurocent_to_euro_string(item['price']),
                     }
 
-                tip += item['tip_percent']
+                tip += item['tip_absolute']
                 price += item['price']
 
                 fromated_items.append(item_formated)
@@ -404,11 +404,14 @@ class APOS:
             print(f"\n{COLORS.HEADER}{COLORS.BOLD}SUMMARY\n{COLORS.ENDC}")
             print(tabulate(fromated_items, headers=header_bar, tablefmt="simple", showindex="always"))
 
-            print(f"{'-'*35}\n{COLORS.OKBLUE}{COLORS.BOLD}Total without tip: {int_eurocent_to_float_euro_string(price)}")
-            print(f"Total tip: {int_eurocent_to_float_euro_string(tip)}\n{COLORS.ENDC}")
+            print(f"{'-'*35}\n{COLORS.OKBLUE}{COLORS.BOLD}Total without tip: {int_eurocent_to_euro_string(price)}")
+            print(f"Total tip: {int_eurocent_to_euro_string(tip)}\n{COLORS.ENDC}")
 
 
 def run():
+    """
+    Function called if the cli command 'apos' is used.
+    """
     APOS()
 
 if __name__ == "__main__":
