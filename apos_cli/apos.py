@@ -235,9 +235,9 @@ class APOS:
         print(f"\nYou are creating a new item for the selected group order. \n") # TODO query group order for name
         item = {}
         item['name'] = input("What do you want to order? Enter pizza type and all extra whishes:\n")
-        item['tip_absolute'] = parse_input("Enter the amount of tip you want to spent (in %): ", r"^((100)|(\d{0,2}))$")
         item['price'] = parse_input("Whats the price of your pizza. \nStay fair and enter the real pice. \nThis makes things much easier for the group creator! Enter price in €:",
             r"^[+]?[0-9]*\.?[0-9]?[0-9]$", to_float=True) * 100
+        item['tip_absolute'] = parse_input("Enter the amount of tip you want to spent (in €): ", r"^[+]?[0-9]*\.?[0-9]?[0-9]$", to_float=True) * 100
 
         if input("\nCreate item? (y/n)") == "y":
             if self.api.create_item(group_id, **item):
