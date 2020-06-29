@@ -45,12 +45,13 @@ class APOS:
             self.decisions(args)
         except AuthException as ae:
             print(f"{COLORS.WARNING}Invalid authentification!{COLORS.ENDC}")
-            exit(0)
+            exit(1)
         except NoTokenException as nte:
             print(f"{COLORS.WARNING}Please login before any other command!{COLORS.ENDC}")
-            exit(0)
+            exit(1)
         except ConnectionException as ce:
             print(f"{COLORS.WARNING}Failed to contact the backend!{COLORS.ENDC}")
+            exit(1)
         except KeyboardInterrupt as ki:
             print(f"{COLORS.WARNING}\nExit APOS.{COLORS.ENDC}")
             exit(0)
